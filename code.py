@@ -34,7 +34,7 @@ CUSTOM_CSS = """
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-st.title("📱 Tạo Mã QR Custom")
+st.title("📱 Tạo Mã QR Custom - Phúc Nguyễn")
 
 # --- 1. NHẬP LIỆU ---
 link = st.text_input(

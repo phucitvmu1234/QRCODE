@@ -1,224 +1,163 @@
+import io
 import json
 import os
-import tkinter as tk
-from tkinter import filedialog, messagebox
 import qrcode
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer
-from PIL import Image, ImageTk
+from PIL import Image
+import streamlit as st
 
-# File cấu hình để ghi nhớ đường dẫn logo
+# File cấu hình để ghi nhớ logo trên server
 CONFIG_FILE = "config_qr.json"
+SAVED_LOGO_PATH = "saved_logo.png"
+
+st.set_page_config(
+    page_title="Tạo Mã QR Custom & Gắn Logo", page_icon="📱", layout="centered"
+)
 
 
-class QRCodeGeneratorApp:
-
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Tạo Mã QR Custom & Gắn Logo")
-        self.root.geometry("520x700")
-        self.root.resizable(False, False)
-
-        self.generated_qr_img = None
-        self.qr_color = (0, 150, 160)  # RGB Xanh ngọc Teal
-
-        self._build_ui()
-        self._load_saved_logo()  # Tự động nạp logo đã lưu từ lần trước
-
-    def _build_ui(self):
-        # Frame Nhập dữ liệu
-        frame_inputs = tk.LabelFrame(
-            self.root, text=" 1. Thông tin đầu vào ", padx=15, pady=15
-        )
-        frame_inputs.pack(fill="x", padx=15, pady=10)
-
-        # Nhập Link
-        tk.Label(frame_inputs, text="Đường dẫn (Link / Text):").pack(
-            anchor="w"
-        )
-        self.entry_link = tk.Entry(frame_inputs, width=50)
-        self.entry_link.pack(fill="x", pady=(2, 10))
-        self.entry_link.insert(0, "https://example.com")
-
-        # Chọn Logo
-        tk.Label(frame_inputs, text="Chọn Logo (Sẽ tự động nhớ cho lần sau):").pack(
-            anchor="w"
-        )
-        frame_logo_select = tk.Frame(frame_inputs)
-        frame_logo_select.pack(fill="x", pady=(2, 10))
-
-        self.entry_logo = tk.Entry(frame_logo_select, width=38)
-        self.entry_logo.pack(side="left", fill="x", expand=True)
-
-        btn_browse = tk.Button(
-            frame_logo_select, text="Chọn ảnh...", command=self.browse_logo
-        )
-        btn_browse.pack(side="right", padx=(5, 0))
-
-        # Nút Tạo QR
-        btn_generate = tk.Button(
-            frame_inputs,
-            text="TẠO MÃ QR",
-            bg="#0096a0",
-            fg="white",
-            font=("Arial", 10, "bold"),
-            command=self.generate_qr,
-        )
-        btn_generate.pack(fill="x", pady=(5, 0))
-
-        # Frame Hiển thị QR
-        frame_preview = tk.LabelFrame(
-            self.root, text=" 2. Xem trước mã QR ", padx=10, pady=10
-        )
-        frame_preview.pack(fill="both", expand=True, padx=15, pady=5)
-
-        self.lbl_preview = tk.Label(
-            frame_preview, text="Chưa tạo QR", bg="#f0f0f0"
-        )
-        self.lbl_preview.pack(fill="both", expand=True)
-
-        # Frame Xuất file / Tải xuống
-        frame_download = tk.LabelFrame(
-            self.root, text=" 3. Tải xuống ", padx=15, pady=15
-        )
-        frame_download.pack(fill="x", padx=15, pady=10)
-
-        frame_size = tk.Frame(frame_download)
-        frame_size.pack(fill="x", pady=(0, 10))
-
-        tk.Label(frame_size, text="Kích thước tải về (px):").pack(side="left")
-        self.spin_size = tk.Spinbox(
-            frame_size, from_=300, to=4000, increment=100, width=10
-        )
-        self.spin_size.pack(side="left", padx=10)
-        self.spin_size.delete(0, "end")
-        self.spin_size.insert(0, "800")  # Mặc định 800px
-
-        btn_download = tk.Button(
-            frame_download,
-            text="LƯU / TẢI MÃ QR XUỐNG",
-            bg="#28a745",
-            fg="white",
-            font=("Arial", 10, "bold"),
-            command=self.download_qr,
-        )
-        btn_download.pack(fill="x")
-
-    def browse_logo(self):
-        file_path = filedialog.askopenfilename(
-            filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.webp")]
-        )
-        if file_path:
-            self.entry_logo.delete(0, tk.END)
-            self.entry_logo.insert(0, file_path)
-            self.save_logo_path(file_path)  # Lưu lại cấu hình ngay khi chọn
-
-    def save_logo_path(self, path):
-        """Lưu đường dẫn logo vào file JSON cấu hình"""
+# --- HÀM HỖ TRỢ LƯU / ĐỌC LOGO ---
+def load_saved_logo():
+    """Đọc logo đã lưu từ lần trước nếu có"""
+    if os.path.exists(CONFIG_FILE) and os.path.exists(SAVED_LOGO_PATH):
         try:
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump({"default_logo": path}, f, ensure_ascii=False, indent=4)
-        except Exception as e:
-            print("Không thể lưu cấu hình logo:", e)
+            return Image.open(SAVED_LOGO_PATH).convert("RGBA")
+        except Exception:
+            return None
+    return None
 
-    def _load_saved_logo(self):
-        """Đọc đường dẫn logo cũ nếu đã từng chọn"""
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    saved_path = data.get("default_logo", "")
-                    if saved_path and os.path.exists(saved_path):
-                        self.entry_logo.delete(0, tk.END)
-                        self.entry_logo.insert(0, saved_path)
-            except Exception as e:
-                print("Không thể nạp logo đã lưu:", e)
 
-    def generate_qr(self):
-        link = self.entry_link.get().strip()
-        if not link:
-            messagebox.showwarning("Cảnh báo", "Vui lòng nhập link!")
-            return
+def save_logo_to_disk(uploaded_file):
+    """Lưu file logo mới tải lên vào ổ đĩa server"""
+    try:
+        image = Image.open(uploaded_file).convert("RGBA")
+        image.save(SAVED_LOGO_PATH, format="PNG")
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(
+                {"default_logo": SAVED_LOGO_PATH},
+                f,
+                ensure_ascii=False,
+                indent=4,
+            )
+        return image
+    except Exception as e:
+        st.error(f"Không thể lưu logo: {e}")
+        return None
 
-        qr = qrcode.QRCode(
-            version=None,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=10,
-            border=3,
-        )
-        qr.add_data(link)
-        qr.make(fit=True)
 
-        qr_img = qr.make_image(
-            image_factory=StyledPilImage,
-            module_drawer=CircleModuleDrawer(),
-            color_mask=SolidFillColorMask(
-                back_color=(255, 255, 255), front_color=self.qr_color
-            ),
-        ).convert("RGBA")
+# --- GIAO DIỆN CHÍNH ---
+st.title("📱 Tạo Mã QR Custom & Gắn Logo")
+st.write("Ứng dụng tạo mã QR nghệ thuật với chấm tròn, màu sắc và logo custom.")
 
-        # Lấy logo từ ô nhập
-        logo_path = self.entry_logo.get().strip()
-        if logo_path and os.path.exists(logo_path):
-            try:
-                logo = Image.open(logo_path).convert("RGBA")
+st.markdown("---")
 
-                # Lưu lại đường dẫn hiện tại phòng trường hợp người dùng gõ tay vào ô
-                self.save_logo_path(logo_path)
+# Section 1: Thông tin đầu vào
+st.subheader("1. Thông tin đầu vào")
 
-                # Căn kích thước logo vừa vặn ở giữa (khoảng 22% QR)
+link_input = st.text_input(
+    "Đường dẫn (Link / Text):",
+    value="https://example.com",
+    placeholder="Nhập link hoặc văn bản cần tạo QR...",
+)
+
+# Xử lý upload và lưu trữ Logo
+uploaded_logo = st.file_uploader(
+    "Chọn Logo (Tự động ghi nhớ cho lần sau):",
+    type=["png", "jpg", "jpeg", "webp"],
+)
+
+logo_img = None
+if uploaded_logo is not None:
+    # Nếu người dùng upload file mới, lưu lại vào server
+    logo_img = save_logo_to_disk(uploaded_logo)
+    st.success("Đã nạp và ghi nhớ logo mới!")
+else:
+    # Nếu không upload file mới, thử nạp lại logo đã nhớ từ trước
+    logo_img = load_saved_logo()
+    if logo_img:
+        st.info("Đã tự động tải logo từ lần sử dụng trước.")
+
+# Cấu hình kích thước tải về
+target_size = st.number_input(
+    "Kích thước mã QR xuất ra (px):",
+    min_value=300,
+    max_value=4000,
+    value=800,
+    step=100,
+)
+
+st.markdown("---")
+
+# Section 2 & 3: Tạo và Tải xuống
+st.subheader("2. Xem trước & Tải xuống")
+
+# Khởi tạo màu QR (Màu xanh ngọc Teal: RGB 0, 150, 160)
+qr_color = (0, 150, 160)
+
+if st.button("TẠO MÃ QR", type="primary", use_container_width=True):
+    if not link_input.strip():
+        st.warning("Vui lòng nhập đường dẫn/văn bản!")
+    else:
+        try:
+            # Tạo QR Code cơ bản
+            qr = qrcode.QRCode(
+                version=None,
+                error_correction=qrcode.constants.ERROR_CORRECT_H,
+                box_size=10,
+                border=3,
+            )
+            qr.add_data(link_input.strip())
+            qr.make(fit=True)
+
+            # Vẽ style chấm tròn + màu xanh Teal
+            qr_img = qr.make_image(
+                image_factory=StyledPilImage,
+                module_drawer=CircleModuleDrawer(),
+                color_mask=SolidFillColorMask(
+                    back_color=(255, 255, 255), front_color=qr_color
+                ),
+            ).convert("RGBA")
+
+            # Ghép logo ở giữa nếu có
+            if logo_img:
                 qr_w, qr_h = qr_img.size
                 logo_max_size = int(qr_w * 0.22)
-                logo.thumbnail(
+
+                # Copy logo để tránh làm biến dạng bản gốc
+                logo_temp = logo_img.copy()
+                logo_temp.thumbnail(
                     (logo_max_size, logo_max_size), Image.Resampling.LANCZOS
                 )
 
-                logo_w, logo_h = logo.size
+                logo_w, logo_h = logo_temp.size
                 pos = ((qr_w - logo_w) // 2, (qr_h - logo_h) // 2)
 
-                qr_img.paste(logo, pos, mask=logo)
-            except Exception as e:
-                messagebox.showerror("Lỗi", f"Không thể chèn logo: {str(e)}")
+                qr_img.paste(logo_temp, pos, mask=logo_temp)
 
-        self.generated_qr_img = qr_img
-
-        # Hiển thị Preview
-        preview_img = qr_img.resize((260, 260), Image.Resampling.LANCZOS)
-        tk_img = ImageTk.PhotoImage(preview_img)
-        self.lbl_preview.config(image=tk_img, text="")
-        self.lbl_preview.image = tk_img
-
-    def download_qr(self):
-        if self.generated_qr_img is None:
-            messagebox.showwarning(
-                "Cảnh báo", "Vui lòng bấm 'TẠO MÃ QR' trước khi tải xuống!"
+            # Resize ảnh theo kích thước người dùng yêu cầu
+            final_img = qr_img.resize(
+                (int(target_size), int(target_size)), Image.Resampling.LANCZOS
             )
-            return
 
-        try:
-            target_size = int(self.spin_size.get())
-        except ValueError:
-            messagebox.showerror(
-                "Lỗi", "Kích thước nhập vào phải là số nguyên!"
+            # Đưa ảnh vào bộ nhớ tạm để hiển thị và tạo nút download
+            buf = io.BytesIO()
+            final_img.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+
+            # Hiển thị xem trước
+            st.image(
+                byte_im, caption=f"Mã QR ({target_size}x{target_size} px)"
             )
-            return
 
-        save_path = filedialog.asksaveasfilename(
-            defaultextension=".png",
-            filetypes=[("PNG Image", "*.png"), ("JPEG Image", "*.jpg")],
-            title="Chọn nơi lưu mã QR",
-        )
-
-        if save_path:
-            final_img = self.generated_qr_img.resize(
-                (target_size, target_size), Image.Resampling.LANCZOS
+            # Nút Tải xuống
+            st.download_button(
+                label="💾 LƯU / TẢI MÃ QR XUỐNG",
+                data=byte_im,
+                file_name="qrcode_custom.png",
+                mime="image/png",
+                use_container_width=True,
             )
-            final_img.save(save_path)
-            messagebox.showinfo("Thành công", f"Đã lưu mã QR tại:\n{save_path}")
 
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = QRCodeGeneratorApp(root)
-    root.mainloop()
+        except Exception as e:
+            st.error(f"Đã xảy ra lỗi khi tạo mã QR: {e}")

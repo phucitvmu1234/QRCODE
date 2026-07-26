@@ -8,120 +8,68 @@ from qrcode.image.styles.moduledrawers import CircleModuleDrawer
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 1. Cấu hình trang chuẩn Dashboard
+# Cấu hình trang
 st.set_page_config(
-    page_title="QR Code Studio Pro",
-    page_icon="🎨",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_title="Tạo Mã QR Custom", page_icon="📱", layout="centered"
 )
 
-# 2. Inject Custom CSS để làm đẹp giao diện
+# CSS thu gọn giao diện, không cho ảnh phình to
 CUSTOM_CSS = """
 <style>
-    /* Gradient Title */
-    .main-title {
-        font-size: 2.3rem !important;
-        font-weight: 800 !important;
-        background: linear-gradient(135deg, #0096a0 0%, #0056b3 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.2rem;
+    /* Bóp nhỏ gọn toàn bộ trang */
+    .block-container {
+        max-width: 550px !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
     }
-    .sub-title {
-        color: #6c757d;
-        font-size: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    /* Card Container */
-    .custom-card {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e9ecef;
-        margin-bottom: 20px;
-    }
-    /* Style cho status text */
-    .status-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        background-color: #e6f4ea;
-        color: #137333;
+    /* Khóa kích thước ảnh QR vừa vặn */
+    [data-testid="stImage"] img {
+        max-width: 220px !important;
+        margin: 0 auto;
+        display: block;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-# --- SIDEBAR: CẤU HÌNH & THÔNG TIN ---
-with st.sidebar:
-    st.image(
-        "https://cdn-icons-png.flaticon.com/512/714/714390.png", width=60
-    )
-    st.title("⚙️ Cấu hình QR")
-    st.caption("Tùy chỉnh thông số mã QR của bạn")
+st.title("📱 Tạo Mã QR Custom")
 
-    st.markdown("---")
-
-    # Nhập đường dẫn
-    link = st.text_input(
-        "🔗 Nội dung / Link URL",
-        value="https://example.com",
-        placeholder="https://yourwebsite.com",
-    )
-
-    # Chọn Logo
-    uploaded_logo = st.file_uploader(
-        "🖼️ Logo chèn ở giữa (Tùy chọn)", type=["png", "jpg", "jpeg", "webp"]
-    )
-
-    # Tùy chỉnh màu sắc & Kích thước
-    col_color, col_bg = st.columns(2)
-    with col_color:
-        hex_color = st.color_picker("🎨 Màu QR", "#0096a0")
-    with col_bg:
-        bg_hex_color = st.color_picker("🔲 Màu nền", "#FFFFFF")
-
-    download_size = st.select_slider(
-        "📐 Kích thước xuất file (px)",
-        options=[300, 500, 800, 1000, 1200, 2000, 4000],
-        value=800,
-    )
-
-    # Convert HEX sang RGB
-    hex_clean = hex_color.lstrip("#")
-    qr_rgb = tuple(int(hex_clean[i : i + 2], 16) for i in (0, 2, 4))
-
-    bg_hex_clean = bg_hex_color.lstrip("#")
-    bg_rgb = tuple(int(bg_hex_clean[i : i + 2], 16) for i in (0, 2, 4))
-
-    st.markdown("---")
-    btn_generate = st.button(
-        "✨ TẠO MÃ QR NGAY", type="primary", use_container_width=True
-    )
-
-
-# --- MAIN CONTENT: HIỂN THỊ KẾT QUẢ ---
-st.markdown(
-    '<div class="main-title">QR Code Studio Pro</div>', unsafe_allow_html=True
-)
-st.markdown(
-    '<div class="sub-title">Công cụ tạo mã QR nghệ thuật chất lượng cao, tích hợp logo thương hiệu</div>',
-    unsafe_allow_html=True,
+# --- 1. NHẬP LIỆU ---
+link = st.text_input(
+    "Đường dẫn (Link / Text):",
+    value="https://example.com",
+    placeholder="Nhập link tại đây...",
 )
 
-col_left, col_right = st.columns([1.2, 1], gap="large")
+uploaded_logo = st.file_uploader(
+    "Chọn Logo (Tùy chọn):", type=["png", "jpg", "jpeg", "webp"]
+)
 
-# Tự động tạo lần đầu hoặc khi bấm nút
+col1, col2, col3 = st.columns([1, 1, 1.5])
+with col1:
+    hex_color = st.color_picker("Màu QR", "#0096a0")
+with col2:
+    bg_hex_color = st.color_picker("Màu nền", "#FFFFFF")
+with col3:
+    download_size = st.number_input(
+        "Kích thước xuất (px)", min_value=300, max_value=4000, value=800
+    )
+
+# Chuyển Hex sang RGB
+hex_clean = hex_color.lstrip("#")
+qr_rgb = tuple(int(hex_clean[i : i + 2], 16) for i in (0, 2, 4))
+bg_clean = bg_hex_color.lstrip("#")
+bg_rgb = tuple(int(bg_clean[i : i + 2], 16) for i in (0, 2, 4))
+
+st.write("")
+btn_generate = st.button("✨ TẠO MÃ QR", type="primary", use_container_width=True)
+
+# --- 2. XỬ LÝ VÀ HIỂN THỊ TẤT CẢ TRÊN 1 TRANG ---
 if btn_generate or "qr_bytes" not in st.session_state:
-    if not link.strip():
-        st.warning("⚠️ Vui lòng nhập thông tin link/văn bản ở cột bên trái!")
-    else:
+    if link.strip():
         try:
-            # Tạo QR Code
             qr = qrcode.QRCode(
                 version=None,
                 error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -139,26 +87,21 @@ if btn_generate or "qr_bytes" not in st.session_state:
                 ),
             ).convert("RGBA")
 
-            # Xử lý chèn Logo
             if uploaded_logo is not None:
                 logo = Image.open(uploaded_logo).convert("RGBA")
                 qr_w, qr_h = qr_img.size
-
-                logo_max_size = int(qr_w * 0.24)
+                logo_max_size = int(qr_w * 0.25)
                 logo.thumbnail(
                     (logo_max_size, logo_max_size), Image.Resampling.LANCZOS
                 )
-
                 logo_w, logo_h = logo.size
                 pos = ((qr_w - logo_w) // 2, (qr_h - logo_h) // 2)
                 qr_img.paste(logo, pos, mask=logo)
 
-            # Resize ảnh theo yêu cầu
             final_img = qr_img.resize(
                 (download_size, download_size), Image.Resampling.LANCZOS
             )
 
-            # Lưu vào bộ nhớ tạm
             img_byte_arr = io.BytesIO()
             final_img.save(img_byte_arr, format="PNG")
             img_bytes = img_byte_arr.getvalue()
@@ -167,99 +110,62 @@ if btn_generate or "qr_bytes" not in st.session_state:
             st.session_state["qr_b64"] = base64.b64encode(img_bytes).decode(
                 "utf-8"
             )
-
         except Exception as e:
-            st.error(f"Đã xảy ra lỗi khi tạo mã QR: {str(e)}")
+            st.error(f"Lỗi: {str(e)}")
 
-# Khung hiển thị kết quả
-with col_left:
-    st.markdown("### 🖼️ Xem trước kết quả")
-    if "qr_bytes" in st.session_state:
-        st.image(
-            st.session_state["qr_bytes"],
-            use_container_width=True,
-            caption=f"Kích thước xem trước ({download_size}x{download_size}px)",
-        )
+# --- 3. KẾT QUẢ VÀ NÚT BẤM CÙNG 1 KHUNG ---
+if "qr_bytes" in st.session_state:
+    st.divider()
 
-with col_right:
-    st.markdown("### 🚀 Xuất file & Chia sẻ")
-    st.markdown(
-        '<span class="status-badge">✓ Sẵn sàng tải xuống</span>',
-        unsafe_allow_html=True,
-    )
+    # Hiển thị ảnh QR căn giữa, kích thước nhỏ gọn
+    st.image(st.session_state["qr_bytes"])
+
     st.write("")
 
-    if "qr_bytes" in st.session_state:
-        # 1. Nút Tải xuống
+    # 2 Nút thao tác nằm ngang song song nhau
+    btn_col1, btn_col2 = st.columns(2)
+
+    with btn_col1:
         st.download_button(
-            label="💾 TẢI MÃ QR XUỐNG (PNG)",
+            label="💾 TẢI MÃ QR XUỐNG",
             data=st.session_state["qr_bytes"],
-            file_name="qr_code_studio.png",
+            file_name="qrcode.png",
             mime="image/png",
             type="primary",
             use_container_width=True,
         )
 
-        st.write("")
-
-        # 2. Nút Copy với Giao diện JS hiện đại
+    with btn_col2:
         b64_str = st.session_state["qr_b64"]
         copy_code_html = f"""
-        <div style="font-family: sans-serif;">
-            <button id="copyBtn" onclick="copyImageToClipboard()" style="
-                width: 100%;
-                background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
-                color: white;
-                padding: 12px;
-                font-weight: bold;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                font-size: 15px;
-                box-shadow: 0 4px 10px rgba(23, 162, 184, 0.3);
-                transition: all 0.2s ease;
-            ">📋 COPY ẢNH VÀO CLIPBOARD</button>
-
-            <p id="msg" style="
-                text-align: center;
-                font-weight: 600;
-                font-size: 13px;
-                margin-top: 8px;
-                min-height: 20px;
-            "></p>
-        </div>
+        <button id="copyBtn" onclick="copyImageToClipboard()" style="
+            width: 100%;
+            background-color: #17a2b8;
+            color: white;
+            padding: 9px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        ">📋 COPY ẢNH</button>
+        <p id="msg" style="text-align:center; font-weight:bold; font-size:12px; margin-top:4px; color:green;"></p>
 
         <script>
         async function copyImageToClipboard() {{
             const msgEl = document.getElementById('msg');
-            const btn = document.getElementById('copyBtn');
-            msgEl.style.color = "#0096a0";
-            msgEl.innerText = "⏳ Đang copy...";
-            
+            msgEl.innerText = "Đang copy...";
             try {{
-                const base64Data = 'data:image/png;base64,{b64_str}';
-                const response = await fetch(base64Data);
+                const response = await fetch('data:image/png;base64,{b64_str}');
                 const blob = await response.blob();
-
-                await navigator.clipboard.write([
-                    new ClipboardItem({{ 'image/png': blob }})
-                ]);
-
-                msgEl.style.color = "#28a745";
-                msgEl.innerText = "✅ Đã copy ảnh vào bộ nhớ tạm!";
-                setTimeout(() => {{ msgEl.innerText = ""; }}, 3000);
+                await navigator.clipboard.write([ new ClipboardItem({{ 'image/png': blob }}) ]);
+                msgEl.innerText = "✅ Đã copy!";
+                setTimeout(() => {{ msgEl.innerText = ""; }}, 2500);
             }} catch (err) {{
-                console.error(err);
-                msgEl.style.color = "#dc3545";
-                msgEl.innerText = "❌ Trình duyệt chặn quyền copy tự động!";
+                msgEl.style.color = "red";
+                msgEl.innerText = "❌ Không hỗ trợ copy!";
             }}
         }}
         </script>
         """
-        components.html(copy_code_html, height=100)
-
-        # Khung thông tin kỹ thuật
-        with st.expander("ℹ️ Thông số chi tiết"):
-            st.write(f"• **Mức sửa lỗi:** High (30%)")
-            st.write(f"• **Màu mắt QR:** `{hex_color}`")
-            st.write(f"• **Định dạng xuất:** PNG Transparent Ready")
+        components.html(copy_code_html, height=70)
